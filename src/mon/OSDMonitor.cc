@@ -4914,6 +4914,24 @@ epoch_t OSDMonitor::send_pg_creates(int osd, Connection *con, epoch_t next) cons
 
 // TICK
 
+void OSDMonitor::check_and_update_mon_osd_report_timeout()
+{
+  auto mon_osd_report_timeout = g_conf()->mon_osd_report_timeout;
+  auto osd_beacon_report_interval = g_conf()->osd_beacon_report_interval;
+
+  if (mon_osd_report_timeout >= 2 * osd_beacon_report_interval) {
+    return;
+  }
+  string valstr = to_string(2 * osd_beacon_report_interval);
+  int r = g_conf().set_val("mon_osd_report_timeout", valstr);
+  if (r < 0) {
+    derr << "cannot update mon_osd_report_timeout" << dendl;
+  } else {
+    dout(1) <<"update mon_osd_report_timeout to 2*osd_beacon_report_interval"
+            << dendl;
+    g_conf().apply_changes(nullptr);
+  }
+}
 
 void OSDMonitor::tick()
 {
@@ -4923,7 +4941,8 @@ void OSDMonitor::tick()
 
   // always update osdmap manifest, regardless of being the leader.
   load_osdmap_manifest();
-
+  check_and_update_mon_osd_report_timeout();
+  
   if (!mon->is_leader()) return;
 
   bool do_propose = false;

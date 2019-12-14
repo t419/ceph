@@ -1682,7 +1682,7 @@ std::vector<Option> get_global_options() {
     Option("mon_osd_report_timeout", Option::TYPE_INT, Option::LEVEL_ADVANCED)
     .set_default(900)
     .add_service("mon")
-    .set_description("time before OSDs who do not report to the mons are marked down (seconds)"),
+    .set_description("time before OSDs who do not report to the mons are marked down (seconds). It will be set to be 2X greater than osd_beacon_report_interval when less than 2X osd_beacon_report_interval."),
 
     Option("mon_warn_on_msgr2_not_enabled", Option::TYPE_BOOL, Option::LEVEL_ADVANCED)
     .set_default(true)

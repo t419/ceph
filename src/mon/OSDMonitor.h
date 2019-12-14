@@ -727,6 +727,7 @@ public:
                                        stringstream& ss,
                                        bool *modified,
                                        bool preparing);
+  void check_and_update_mon_osd_report_timeout();
 
   bool handle_osd_timeouts(const utime_t &now,
 			   std::map<int,utime_t> &last_osd_report);
