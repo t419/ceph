@@ -17,9 +17,14 @@
 
 #include "crypto/crypto_accel.h"
 
+#include <openssl/engine.h>
+
 class OpenSSLCryptoAccel : public CryptoAccel {
+ private:
+  string engine_id;
+  ENGINE* engine;
  public:
-  OpenSSLCryptoAccel() {}
+  OpenSSLCryptoAccel();
   virtual ~OpenSSLCryptoAccel() {}
 
   bool cbc_encrypt(unsigned char* out, const unsigned char* in, size_t size,

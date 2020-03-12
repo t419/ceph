@@ -13,6 +13,8 @@
  */
 
 #include "crypto/openssl/openssl_crypto_accel.h"
+#include "crypto/openssl/openssl_accel_engine.hpp"
+
 #include <openssl/evp.h>
 #include <openssl/engine.h>
 #include "common/debug.h"
@@ -74,7 +76,11 @@ bool evp_transform(unsigned char* out, const unsigned char* in, size_t size,
   ceph_assert(len_final == 0);
   return (len_update + len_final) == static_cast<int>(size);
 }
-                        
+
+OpenSSLCryptoAccel::OpenSSLCryptoAccel()
+    : engine_id(g_ceph_context->_conf->openssl_accel_engine),
+      engine(OpensslAccelEngine::get_instance(engine_id).get_engine()) {}
+
 bool OpenSSLCryptoAccel::cbc_encrypt(unsigned char* out, const unsigned char* in, size_t size,
                              const unsigned char (&iv)[AES_256_IVSIZE],
                              const unsigned char (&key)[AES_256_KEYSIZE])
@@ -85,7 +91,7 @@ bool OpenSSLCryptoAccel::cbc_encrypt(unsigned char* out, const unsigned char* in
 
   return evp_transform(out, in, size, const_cast<unsigned char*>(&iv[0]),
                        const_cast<unsigned char*>(&key[0]),
-                       nullptr, // Hardware acceleration engine can be used in the future
+                       engine, // Hardware acceleration engine, nullptr when no engine found
                        EVP_aes_256_cbc(), AES_ENCRYPT);
 }
                              
@@ -99,6 +105,6 @@ bool OpenSSLCryptoAccel::cbc_decrypt(unsigned char* out, const unsigned char* in
 
   return evp_transform(out, in, size, const_cast<unsigned char*>(&iv[0]),
                        const_cast<unsigned char*>(&key[0]),
-                       nullptr, // Hardware acceleration engine can be used in the future
+                       engine, // Hardware acceleration engine, nullptr when no engine found
                        EVP_aes_256_cbc(), AES_DECRYPT);
 }
