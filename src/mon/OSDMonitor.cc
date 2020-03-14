@@ -4241,7 +4241,8 @@ bool OSDMonitor::prepare_beacon(MonOpRequestRef op)
     return false;
   }
 
-  last_osd_report[from] = ceph_clock_now();
+  last_osd_report[from].first = ceph_clock_now();
+  last_osd_report[from].second = beacon->osd_beacon_report_interval;
   osd_epochs[from] = beacon->version;
 
   for (const auto& pg : beacon->pgs) {
@@ -5109,7 +5110,7 @@ void OSDMonitor::_set_new_cache_sizes()
 }
 
 bool OSDMonitor::handle_osd_timeouts(const utime_t &now,
-				     std::map<int,utime_t> &last_osd_report)
+				     std::map<int, std::pair<utime_t, int>> &last_osd_report)
 {
   utime_t timeo(g_conf()->mon_osd_report_timeout, 0);
   if (now - mon->get_leader_since() < timeo) {
@@ -5128,19 +5129,32 @@ bool OSDMonitor::handle_osd_timeouts(const utime_t &now,
     }
     if (!osdmap.is_up(i))
       continue;
-    const std::map<int,utime_t>::const_iterator t = last_osd_report.find(i);
+    const std::map<int, std::pair<utime_t, int>>::const_iterator t = last_osd_report.find(i);
     if (t == last_osd_report.end()) {
       // it wasn't in the map; start the timer.
-      last_osd_report[i] = now;
+      last_osd_report[i].first = now;
+      last_osd_report[i].second = g_conf()->osd_beacon_report_interval;
     } else if (can_mark_down(i)) {
-      utime_t diff = now - t->second;
+      utime_t diff = now - t->second.first;
       if (diff > timeo) {
-	mon->clog->info() << "osd." << i << " marked down after no beacon for "
-			  << diff << " seconds";
-	derr << "no beacon from osd." << i << " since " << t->second
-	     << ", " << diff << " seconds ago.  marking down" << dendl;
-	pending_inc.new_state[i] = CEPH_OSD_UP;
-	new_down = true;
+	// check mon_osd_report_timout and osd_beacon_report_interval when a timeout happens.
+	if (g_conf()->mon_osd_report_timeout >= 2 * t->second.second) {
+	  mon->clog->info() << "osd." << i << " marked down after no beacon for "
+	                    << diff << " seconds";
+	  derr << "no beacon from osd." << i << " since " << t->second.first
+	       << ", " << diff << " seconds ago.  marking down" << dendl;
+	  pending_inc.new_state[i] = CEPH_OSD_UP;
+	  new_down = true;
+        } else {
+	  dout(1) << __func__ << " mon_osd_report_timout:" << g_conf()->mon_osd_report_timeout
+	          << " is 2x less than osd." << i << " osd_beacon_report_interval:"
+		  << t->second.second << ", will change it" << dendl;
+	  // change the leader's mon_osd_report_timeout to 2*osd_beacon_report_interval
+	  g_conf().set_val("mon_osd_report_timeout", std::to_string(2 * t->second.second));
+	  dout(1) << __func__ << " change mon_osd_report_timeout to "
+	          << g_conf()->mon_osd_report_timeout << dendl;
+	  g_conf().apply_changes(nullptr);
+        }
       }
     }
   }

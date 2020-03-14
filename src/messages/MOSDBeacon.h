@@ -13,6 +13,7 @@ public:
   std::vector<pg_t> pgs;
   epoch_t min_last_epoch_clean = 0;
   utime_t last_purged_snaps_scrub;
+  int osd_beacon_report_interval;
 
   MOSDBeacon()
     : PaxosServiceMessage{MSG_OSD_BEACON, 0,
@@ -30,6 +31,7 @@ public:
     encode(pgs, payload);
     encode(min_last_epoch_clean, payload);
     encode(last_purged_snaps_scrub, payload);
+    encode(osd_beacon_report_interval, payload);
   }
   void decode_payload() override {
     auto p = payload.cbegin();
@@ -39,6 +41,7 @@ public:
     if (header.version >= 2) {
       decode(last_purged_snaps_scrub, p);
     }
+    decode(osd_beacon_report_interval, p);
   }
   std::string_view get_type_name() const override { return "osd_beacon"; }
   void print(ostream &out) const {

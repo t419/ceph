@@ -6724,6 +6724,7 @@ void OSD::send_beacon(const ceph::coarse_mono_clock::time_point& now)
 			      min_last_epoch_clean,
 			      superblock.last_purged_snaps_scrub);
       beacon->pgs = min_last_epoch_clean_pgs;
+      beacon->osd_beacon_report_interval = cct->_conf->osd_beacon_report_interval;
       last_sent_beacon = now;
     }
     monc->send_mon_message(beacon);
